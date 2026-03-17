@@ -1,0 +1,36 @@
+[package]
+name = "portpilot"
+version = "0.1.0"
+edition = "2021"
+description = "Persistent SSH port forwarding manager — a TUI to replace remembering ssh -L flags forever"
+license = "MIT"
+repository = "https://github.com/yourusername/portpilot"
+keywords = ["ssh", "tunnel", "tui", "port-forward", "devtools"]
+categories = ["command-line-utilities", "network-programming"]
+
+[[bin]]
+name = "portpilot"
+path = "src/main.rs"
+
+[dependencies]
+ratatui      = "0.26"
+crossterm    = "0.27"
+tokio        = { version = "1", features = ["full"] }
+tokio-util   = { version = "0.7", features = ["rt"] }
+serde        = { version = "1", features = ["derive"] }
+toml         = "0.8"
+anyhow       = "1"
+tracing      = "0.1"
+tracing-appender    = "0.2"
+tracing-subscriber  = { version = "0.3", features = ["env-filter"] }
+dirs         = "5"
+
+# pin time below edition2024 boundary (build env uses Rust 1.75)
+time         = "=0.3.36"
+indexmap     = "=2.4.0"
+
+[profile.release]
+strip = true
+opt-level = "z"
+lto = true
+codegen-units = 1

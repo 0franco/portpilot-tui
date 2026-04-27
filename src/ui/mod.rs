@@ -4,16 +4,22 @@ pub mod tunnel_list;
 
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Color, Style};
-use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, Paragraph};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::Frame;
 
 use crate::app::{App, Mode};
 
+// Log pane takes 40% of the terminal height, min 8 rows, max 20 rows.
+fn log_height(total: u16) -> u16 {
+    ((total as f32 * 0.40) as u16).clamp(8, 20)
+}
+
 pub fn render(f: &mut Frame<'_>, app: &App) {
+    let log_h = log_height(f.size().height);
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(5), Constraint::Length(6)])
+        .constraints([Constraint::Min(5), Constraint::Length(log_h)])
         .split(f.size());
 
     tunnel_list::render(f, app, chunks[0]);
@@ -27,18 +33,76 @@ pub fn render(f: &mut Frame<'_>, app: &App) {
 }
 
 fn render_logs(f: &mut Frame<'_>, app: &App, area: ratatui::layout::Rect) {
-    let visible = area.height.saturating_sub(2) as usize;
-    let start = app.logs.len().saturating_sub(visible);
+    // With word-wrap enabled, each raw log line may occupy multiple display
+    // rows. We keep up to 200 entries but show only the tail that fits.
+    // Use a generous look-back window so long lines still appear.
+    let inner_width = area.width.saturating_sub(2) as usize; // minus borders
+    let inner_height = area.height.saturating_sub(2) as usize;
+
+    // Estimate how many raw log entries fit by counting wrapped rows from the end.
+    let mut row_budget = inner_height;
+    let mut start = app.logs.len();
+    for msg in app.logs.iter().rev() {
+        let wrapped_rows = wrapped_row_count(msg, inner_width);
+        if wrapped_rows > row_budget {
+            break;
+        }
+        row_budget -= wrapped_rows;
+        start = start.saturating_sub(1);
+    }
 
     let lines: Vec<Line> = app.logs[start..]
         .iter()
-        .map(|m| Line::from(ratatui::text::Span::styled(m.as_str(), Style::default().fg(Color::DarkGray))))
+        .map(|m| {
+            // colour the tunnel name bracket differently
+            if let Some(rest) = m.strip_prefix('[') {
+                if let Some(bracket_end) = rest.find(']') {
+                    let name_part = format!("[{}]", &rest[..bracket_end]);
+                    let rest_part = &rest[bracket_end + 1..];
+                    let color = if m.contains("FAILED") {
+                        Color::Red
+                    } else if m.contains("UP") {
+                        Color::Green
+                    } else {
+                        Color::DarkGray
+                    };
+                    return Line::from(vec![
+                        Span::styled(name_part, Style::default().fg(Color::Blue)),
+                        Span::styled(rest_part.to_owned(), Style::default().fg(color)),
+                    ]);
+                }
+            }
+            Line::styled(m.as_str(), Style::default().fg(Color::DarkGray))
+        })
         .collect();
 
     let block = Block::default()
-        .title(" Logs ")
+        .title(" Logs (latest) ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::DarkGray));
 
-    f.render_widget(Paragraph::new(lines).block(block), area);
+    f.render_widget(
+        Paragraph::new(lines)
+            .block(block)
+            .wrap(Wrap { trim: false }),
+        area,
+    );
+}
+
+/// How many terminal rows a single log message occupies at the given width.
+fn wrapped_row_count(msg: &str, width: usize) -> usize {
+    if width == 0 {
+        return 1;
+    }
+    msg.lines()
+        .map(|line| {
+            let len = line.chars().count();
+            if len == 0 {
+                1
+            } else {
+                (len + width - 1) / width
+            }
+        })
+        .sum::<usize>()
+        .max(1)
 }

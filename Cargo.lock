@@ -429,6 +429,7 @@ dependencies = [
  "anyhow",
  "crossterm",
  "dirs",
+ "futures-util",
  "indexmap",
  "ratatui",
  "serde",

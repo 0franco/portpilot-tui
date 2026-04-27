@@ -78,7 +78,10 @@ portpilot
 |---|---|
 | `↑` / `↓` / `j` / `k` | Navigate tunnel list |
 | `Enter` / `Space` | Toggle tunnel on/off |
-| `n` | New tunnel |
+| `n` | New SSH tunnel |
+| `N` | New Kubernetes tunnel |
+| `K` | New Kubernetes via SSH tunnel |
+| `B` | New Kubernetes via bastion tunnel |
 | `e` | Edit selected tunnel |
 | `d` / `Del` | Delete selected tunnel |
 | `Tab` | Switch project |
@@ -96,6 +99,7 @@ Configs live at `~/.config/portpilot/projects/<name>.toml`. You can edit them by
 
 [[tunnels]]
 name          = "postgres-prod"
+kind          = "ssh" # optional; omitted kind defaults to "ssh"
 local_port    = 5432
 remote_host   = "db.internal"
 remote_port   = 5432
@@ -105,13 +109,55 @@ auto_restart  = true
 
 [[tunnels]]
 name          = "redis-staging"
+kind          = "ssh"
 local_port    = 6379
 remote_host   = "redis.staging.internal"
 remote_port   = 6379
 ssh_host      = "bastion-staging.example.com"
 identity_file = "~/.ssh/id_staging"
 auto_restart  = false
+
+[[tunnels]]
+name          = "api-pod"
+kind          = "kubernetes"
+local_port    = 8080
+remote_port   = 8080
+target        = "svc/api"
+namespace     = "staging"
+context       = "staging-cluster"
+auto_restart  = true
+
+[[tunnels]]
+name          = "mysql-over-ssh"
+kind          = "kubernetes-via-ssh"
+local_port    = 3306
+remote_port   = 3306
+ssh_host      = "k8s-admin.example.com"
+ssh_user      = "ec2-user"
+identity_file = "~/.ssh/k8s-admin.pem"
+target        = "svc/mysql"
+namespace     = "data"
+remote_user   = "deploy" # optional: runs kubectl as this user on ssh_host
+auto_restart  = true
+
+[[tunnels]]
+name                   = "mysql-over-bastion"
+kind                   = "kubernetes-via-bastion-ssh"
+local_port             = 3306
+remote_port            = 3306
+bastion_host           = "bastion.example.com"
+bastion_user           = "ec2-user"
+bastion_identity_file  = "~/.ssh/bastion.pem"
+target_host            = "10.0.10.25"
+target_user            = "ec2-user"
+target_identity_file   = "~/.ssh/k8s-target.pem"
+target                 = "svc/mysql"
+namespace              = "data"
+target_remote_user     = "deploy" # optional: runs kubectl as this user on target_host
+auto_restart           = true
 ```
+
+For `kubernetes-via-bastion-ssh`, `bastion_user` is the SSH login for `bastion_host`, `target_user` is the SSH login for `target_host`, and `target_remote_user` only controls the optional `sudo -u` user for the remote `kubectl` command.
 
 Multiple `.toml` files in `~/.config/portpilot/projects/` become separate projects, switchable with `Tab`.
 

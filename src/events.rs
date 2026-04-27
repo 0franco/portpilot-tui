@@ -6,5 +6,6 @@ use crate::tunnel::TunnelState;
 pub enum AppEvent {
     Key(KeyEvent),
     TunnelStateChanged { name: String, state: TunnelState },
+    Log { tunnel: String, line: String },
     Tick,
 }

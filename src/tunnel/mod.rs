@@ -12,9 +12,9 @@ pub enum TunnelState {
 impl TunnelState {
     pub fn label(&self) -> &'static str {
         match self {
-            TunnelState::Stopped      => "STOPPED",
-            TunnelState::Connecting   => "CONNECTING",
-            TunnelState::Up { .. }    => "UP",
+            TunnelState::Stopped => "STOPPED",
+            TunnelState::Connecting => "CONNECTING",
+            TunnelState::Up { .. } => "UP",
             TunnelState::Failed { .. } => "FAILED",
         }
     }

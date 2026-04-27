@@ -109,8 +109,12 @@ Doctor reports the exact generated command, validates kind-specific config field
 
 Configs live at `~/.config/portpilot/projects/<name>.toml`. You can edit them by hand or use the TUI.
 
+Each `.toml` file is one project in the UI. Press `Tab` to switch between them.
+
+Example layout:
+
 ```toml
-# ~/.config/portpilot/projects/config1.toml
+# ~/.config/portpilot/projects/prod.toml
 
 [[tunnels]]
 name          = "postgres-prod"
@@ -121,6 +125,10 @@ remote_port   = 5432
 ssh_host      = "bastion.example.com"
 ssh_user      = "alice"
 auto_restart  = true
+```
+
+```toml
+# ~/.config/portpilot/projects/staging.toml
 
 [[tunnels]]
 name          = "redis-staging"
@@ -131,6 +139,21 @@ remote_port   = 6379
 ssh_host      = "bastion-staging.example.com"
 identity_file = "~/.ssh/id_staging"
 auto_restart  = false
+
+[[tunnels]]
+name          = "postgres-via-bastion"
+kind          = "ssh"
+local_port    = 15432
+remote_host   = "aurora-pg.internal"
+remote_port   = 5432
+ssh_host      = "bastion-staging.example.com"
+ssh_user      = "ec2-user"
+identity_file = "~/.ssh/staging-bastion.pem"
+auto_restart  = true
+```
+
+```toml
+# ~/.config/portpilot/projects/k8s-staging.toml
 
 [[tunnels]]
 name          = "api-pod"
@@ -154,6 +177,10 @@ target        = "svc/mysql"
 namespace     = "data"
 remote_user   = "deploy" # optional: runs kubectl as this user on ssh_host
 auto_restart  = true
+```
+
+```toml
+# ~/.config/portpilot/projects/k8s-prod.toml
 
 [[tunnels]]
 name                   = "mysql-over-bastion"
@@ -172,9 +199,9 @@ target_remote_user     = "deploy" # optional: runs kubectl as this user on targe
 auto_restart           = true
 ```
 
-For `kubernetes-via-bastion-ssh`, `bastion_user` is the SSH login for `bastion_host`, `target_user` is the SSH login for `target_host`, and `target_remote_user` only controls the optional `sudo -u` user for the remote `kubectl` command.
+For a simple database behind a bastion, use `kind = "ssh"`: `ssh_host` is the bastion you log into, and `remote_host` is the database host reachable from that bastion.
 
-Multiple `.toml` files in `~/.config/portpilot/projects/` become separate projects, switchable with `Tab`.
+For `kubernetes-via-bastion-ssh`, `bastion_user` is the SSH login for `bastion_host`, `target_user` is the SSH login for `target_host`, and `target_remote_user` only controls the optional `sudo -u` user for the remote `kubectl` command.
 
 ---
 

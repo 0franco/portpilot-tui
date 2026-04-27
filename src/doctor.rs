@@ -52,15 +52,44 @@ impl DoctorReport {
         }
         lines
     }
+
+    pub fn colored_lines(&self) -> Vec<String> {
+        let mut lines = vec![format!(
+            "\x1b[1;34mDoctor report for {}\x1b[0m",
+            self.tunnel
+        )];
+        for check in &self.checks {
+            let marker = format!(
+                "{}[{}]\x1b[0m",
+                check.status.ansi_code(),
+                check.status.label()
+            );
+            if check.detail.is_empty() {
+                lines.push(format!("{marker} {}", check.title));
+            } else {
+                lines.push(format!("{marker} {}: {}", check.title, check.detail));
+            }
+        }
+        lines
+    }
 }
 
 impl CheckStatus {
-    fn label(self) -> &'static str {
+    pub fn label(self) -> &'static str {
         match self {
             CheckStatus::Pass => "PASS",
             CheckStatus::Warn => "WARN",
             CheckStatus::Fail => "FAIL",
             CheckStatus::Info => "INFO",
+        }
+    }
+
+    fn ansi_code(self) -> &'static str {
+        match self {
+            CheckStatus::Pass => "\x1b[1;32m",
+            CheckStatus::Warn => "\x1b[1;33m",
+            CheckStatus::Fail => "\x1b[1;31m",
+            CheckStatus::Info => "\x1b[1;36m",
         }
     }
 }
@@ -520,5 +549,34 @@ mod tests {
                 && check.title == "identity_file"
                 && check.detail.contains("/definitely/missing/key.pem")
         }));
+    }
+
+    #[tokio::test]
+    async fn colored_lines_wrap_status_markers_in_ansi() {
+        let report = diagnose(
+            &TunnelConfig {
+                name: "db".to_owned(),
+                kind: kind::SSH.to_owned(),
+                local_port: 5432,
+                remote_host: Some("db.internal".to_owned()),
+                remote_port: 5432,
+                ssh_host: Some("bastion.example.com".to_owned()),
+                identity_file: Some(PathBuf::from("/definitely/missing/key.pem")),
+                ..Default::default()
+            },
+            false,
+        )
+        .await;
+
+        let lines = report.colored_lines();
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("\x1b[1;31m[FAIL]\x1b[0m")));
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("\x1b[1;33m[WARN]\x1b[0m")));
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("\x1b[1;36m[INFO]\x1b[0m")));
     }
 }

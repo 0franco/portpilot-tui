@@ -53,27 +53,7 @@ fn render_logs(f: &mut Frame<'_>, app: &App, area: ratatui::layout::Rect) {
 
     let lines: Vec<Line> = app.logs[start..]
         .iter()
-        .map(|m| {
-            // colour the tunnel name bracket differently
-            if let Some(rest) = m.strip_prefix('[') {
-                if let Some(bracket_end) = rest.find(']') {
-                    let name_part = format!("[{}]", &rest[..bracket_end]);
-                    let rest_part = &rest[bracket_end + 1..];
-                    let color = if m.contains("FAILED") {
-                        Color::Red
-                    } else if m.contains("UP") {
-                        Color::Green
-                    } else {
-                        Color::DarkGray
-                    };
-                    return Line::from(vec![
-                        Span::styled(name_part, Style::default().fg(Color::Blue)),
-                        Span::styled(rest_part.to_owned(), Style::default().fg(color)),
-                    ]);
-                }
-            }
-            Line::styled(m.as_str(), Style::default().fg(Color::DarkGray))
-        })
+        .map(|m| render_log_line(m))
         .collect();
 
     let block = Block::default()
@@ -87,6 +67,57 @@ fn render_logs(f: &mut Frame<'_>, app: &App, area: ratatui::layout::Rect) {
             .wrap(Wrap { trim: false }),
         area,
     );
+}
+
+fn render_log_line(m: &str) -> Line<'_> {
+    // colour the tunnel name bracket differently
+    if let Some(rest) = m.strip_prefix('[') {
+        if let Some(bracket_end) = rest.find(']') {
+            let name_part = format!("[{}]", &rest[..bracket_end]);
+            let rest_part = &rest[bracket_end + 1..];
+            if let Some((before, marker, after, marker_color)) = split_doctor_status(rest_part) {
+                return Line::from(vec![
+                    Span::styled(name_part, Style::default().fg(Color::Blue)),
+                    Span::styled(before.to_owned(), Style::default().fg(Color::DarkGray)),
+                    Span::styled(marker.to_owned(), Style::default().fg(marker_color)),
+                    Span::styled(after.to_owned(), Style::default().fg(Color::Gray)),
+                ]);
+            }
+
+            let color = if m.contains("FAILED") {
+                Color::Red
+            } else if m.contains("UP") {
+                Color::Green
+            } else {
+                Color::DarkGray
+            };
+            return Line::from(vec![
+                Span::styled(name_part, Style::default().fg(Color::Blue)),
+                Span::styled(rest_part.to_owned(), Style::default().fg(color)),
+            ]);
+        }
+    }
+    Line::styled(m, Style::default().fg(Color::DarkGray))
+}
+
+fn split_doctor_status(rest_part: &str) -> Option<(&str, &str, &str, Color)> {
+    for (marker, color) in [
+        ("[PASS]", Color::Green),
+        ("[FAIL]", Color::Red),
+        ("[WARN]", Color::Yellow),
+        ("[INFO]", Color::Cyan),
+    ] {
+        if let Some(start) = rest_part.find(marker) {
+            let end = start + marker.len();
+            return Some((
+                &rest_part[..start],
+                &rest_part[start..end],
+                &rest_part[end..],
+                color,
+            ));
+        }
+    }
+    None
 }
 
 /// How many terminal rows a single log message occupies at the given width.

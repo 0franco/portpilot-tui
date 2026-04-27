@@ -5,6 +5,8 @@ mod events;
 mod tunnel;
 mod ui;
 
+use std::io::IsTerminal;
+
 use anyhow::{anyhow, bail, Result};
 use crossterm::{
     execute,
@@ -76,7 +78,12 @@ async fn run_doctor_cli(args: &[String]) -> Result<()> {
 
     let tunnel = find_tunnel(tunnel_name, project_name)?;
     let report = doctor::diagnose(&tunnel, include_remote).await;
-    for line in report.lines() {
+    let lines = if std::io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none() {
+        report.colored_lines()
+    } else {
+        report.lines()
+    };
+    for line in lines {
         println!("{line}");
     }
 

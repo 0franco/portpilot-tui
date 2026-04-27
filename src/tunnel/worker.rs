@@ -121,9 +121,9 @@ fn start_process(c: &TunnelConfig) -> anyhow::Result<tokio::process::Child> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-struct CommandSpec {
-    program: String,
-    args: Vec<String>,
+pub(crate) struct CommandSpec {
+    pub(crate) program: String,
+    pub(crate) args: Vec<String>,
 }
 
 impl CommandSpec {
@@ -155,7 +155,7 @@ impl CommandSpec {
     }
 }
 
-fn command_spec(c: &TunnelConfig) -> anyhow::Result<CommandSpec> {
+pub(crate) fn command_spec(c: &TunnelConfig) -> anyhow::Result<CommandSpec> {
     match c.kind.as_str() {
         kind::SSH => ssh_spec(c),
         kind::KUBERNETES => kubectl_spec(c),
@@ -322,7 +322,7 @@ fn kubectl_via_bastion_spec(c: &TunnelConfig) -> anyhow::Result<CommandSpec> {
     Ok(cmd)
 }
 
-fn proxy_command(bastion: &str, user: Option<&str>, identity: Option<&Path>) -> String {
+pub(crate) fn proxy_command(bastion: &str, user: Option<&str>, identity: Option<&Path>) -> String {
     let mut args = vec![
         "ssh".to_owned(),
         "-W".to_owned(),
@@ -345,7 +345,7 @@ fn proxy_command(bastion: &str, user: Option<&str>, identity: Option<&Path>) -> 
         .join(" ")
 }
 
-fn expand_identity_file(path: &Path) -> String {
+pub(crate) fn expand_identity_file(path: &Path) -> String {
     let raw = path.to_string_lossy();
     if raw == "~" {
         return dirs::home_dir()
@@ -361,7 +361,7 @@ fn expand_identity_file(path: &Path) -> String {
     raw.into_owned()
 }
 
-fn shell_quote(arg: &str) -> String {
+pub(crate) fn shell_quote(arg: &str) -> String {
     if arg
         .chars()
         .all(|c| c.is_ascii_alphanumeric() || "-_./:%=".contains(c))
@@ -370,6 +370,15 @@ fn shell_quote(arg: &str) -> String {
     } else {
         format!("'{}'", arg.replace('\'', "'\\''"))
     }
+}
+
+pub(crate) fn command_line(c: &TunnelConfig) -> anyhow::Result<String> {
+    let spec = command_spec(c)?;
+    Ok(std::iter::once(spec.program)
+        .chain(spec.args)
+        .map(|arg| shell_quote(&arg))
+        .collect::<Vec<_>>()
+        .join(" "))
 }
 
 #[cfg(test)]

@@ -19,6 +19,7 @@ pub fn render(f: &mut Frame<'_>) {
         ("↑ / k", "move up"),
         ("↓ / j", "move down"),
         ("Enter / ␣", "toggle tunnel on/off"),
+        ("D", "doctor selected tunnel"),
         ("n", "new SSH tunnel"),
         ("N", "new Kubernetes tunnel"),
         ("K", "new Kubernetes via SSH tunnel"),

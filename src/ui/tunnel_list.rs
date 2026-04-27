@@ -9,7 +9,7 @@ use crate::tunnel::TunnelState;
 
 pub fn render(f: &mut Frame<'_>, app: &App, area: Rect) {
     let title = format!(" PortPilot  ·  project: {} ", app.project_name());
-    let hint = " [↑↓/jk] nav  [↵/ ] toggle  [e] edit  [n] ssh  [N] k8s  [K] k8s+ssh  [B] k8s+bastion  [d] del  [Tab] project  [?] help  [q] quit ";
+    let hint = " [↑↓/jk] nav  [↵/ ] toggle  [D] doctor  [e] edit  [n] ssh  [N] k8s  [K] k8s+ssh  [B] k8s+bastion  [d] del  [Tab] project  [?] help  [q] quit ";
 
     let items: Vec<ListItem> = if app.project.tunnels.is_empty() {
         vec![ListItem::new(Line::from(Span::styled(

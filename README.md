@@ -31,6 +31,7 @@ PortPilot fixes this.
 - **Auto-restart** — configurable per tunnel; backs off exponentially on repeated failures
 - **Project presets** — switch between work/staging/personal configs with `Tab`
 - **Live status** — see `UP`, `CONNECTING`, `FAILED`, `STOPPED` with process PID in real time
+- **Tunnel Doctor** — preview generated commands and diagnose config, port, key, SSH, and kubectl failures
 - **Persistent config** — tunnels survive restarts, stored as plain TOML you can commit to a repo
 - **No daemon required** — PortPilot _is_ the process; quit the TUI and tunnels stop cleanly
 - **Log pane** — tail of state-change events inline, full logs written to `~/.config/portpilot/logs/`
@@ -67,8 +68,21 @@ portpilot
 
 # Press [n] to add your first tunnel, fill in the fields, press Enter to save.
 # Press [Enter] or [Space] on a tunnel to start it.
+# Press [D] to diagnose the selected tunnel before starting it.
 # Press [?] for the full keybinding reference.
 ```
+
+### Tunnel Doctor
+
+Run preflight checks without starting a tunnel:
+
+```sh
+portpilot doctor mysql-over-bastion
+portpilot doctor --project work mysql-over-bastion
+portpilot doctor --no-remote mysql-over-bastion
+```
+
+Doctor reports the exact generated command, validates kind-specific config fields, checks local port availability, verifies identity files, and runs short SSH/kubectl reachability checks unless `--no-remote` is set.
 
 ---
 
@@ -78,6 +92,7 @@ portpilot
 |---|---|
 | `↑` / `↓` / `j` / `k` | Navigate tunnel list |
 | `Enter` / `Space` | Toggle tunnel on/off |
+| `D` | Run doctor checks for selected tunnel |
 | `n` | New SSH tunnel |
 | `N` | New Kubernetes tunnel |
 | `K` | New Kubernetes via SSH tunnel |

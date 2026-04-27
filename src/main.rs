@@ -1,10 +1,11 @@
 mod app;
 mod config;
+mod doctor;
 mod events;
 mod tunnel;
 mod ui;
 
-use anyhow::Result;
+use anyhow::{anyhow, bail, Result};
 use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -18,6 +19,11 @@ use crate::events::AppEvent;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("doctor") {
+        return run_doctor_cli(&args[1..]).await;
+    }
+
     init_logging()?;
 
     let (tx, rx) = mpsc::channel::<AppEvent>(256);
@@ -36,6 +42,96 @@ async fn main() -> Result<()> {
     terminal.show_cursor()?;
 
     result
+}
+
+async fn run_doctor_cli(args: &[String]) -> Result<()> {
+    let mut project_name = None;
+    let mut include_remote = true;
+    let mut tunnel_name = None;
+    let mut idx = 0;
+
+    while idx < args.len() {
+        match args[idx].as_str() {
+            "--project" | "-p" => {
+                idx += 1;
+                let Some(name) = args.get(idx) else {
+                    bail!("usage: portpilot doctor [--project <name>] [--no-remote] <tunnel-name>");
+                };
+                project_name = Some(name.as_str());
+            }
+            "--no-remote" => include_remote = false,
+            "--help" | "-h" => {
+                println!("usage: portpilot doctor [--project <name>] [--no-remote] <tunnel-name>");
+                return Ok(());
+            }
+            name if tunnel_name.is_none() => tunnel_name = Some(name),
+            extra => bail!("unexpected argument `{extra}`"),
+        }
+        idx += 1;
+    }
+
+    let Some(tunnel_name) = tunnel_name else {
+        bail!("usage: portpilot doctor [--project <name>] [--no-remote] <tunnel-name>");
+    };
+
+    let tunnel = find_tunnel(tunnel_name, project_name)?;
+    let report = doctor::diagnose(&tunnel, include_remote).await;
+    for line in report.lines() {
+        println!("{line}");
+    }
+
+    if report.has_failures() {
+        bail!("doctor found failures for {}", report.tunnel);
+    }
+
+    Ok(())
+}
+
+fn find_tunnel(
+    tunnel_name: &str,
+    project_name: Option<&str>,
+) -> Result<config::schema::TunnelConfig> {
+    let paths = config::list_projects()?;
+    if paths.is_empty() {
+        bail!(
+            "no project configs found in {}",
+            config::projects_dir().display()
+        );
+    }
+
+    let mut matches = Vec::new();
+    for path in paths {
+        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+        if project_name.map(|name| name != stem).unwrap_or(false) {
+            continue;
+        }
+        let project = config::load_project(&path)?;
+        for tunnel in project.tunnels {
+            if tunnel.name == tunnel_name {
+                matches.push((stem.to_owned(), tunnel));
+            }
+        }
+    }
+
+    match matches.len() {
+        0 => Err(anyhow!(
+            "tunnel `{}` not found{}",
+            tunnel_name,
+            project_name
+                .map(|name| format!(" in project `{name}`"))
+                .unwrap_or_default()
+        )),
+        1 => Ok(matches.remove(0).1),
+        _ => Err(anyhow!(
+            "tunnel `{}` exists in multiple projects: {}; rerun with --project <name>",
+            tunnel_name,
+            matches
+                .iter()
+                .map(|(project, _)| project.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )),
+    }
 }
 
 fn init_logging() -> Result<()> {

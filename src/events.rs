@@ -7,5 +7,6 @@ pub enum AppEvent {
     Key(KeyEvent),
     TunnelStateChanged { name: String, state: TunnelState },
     Log { tunnel: String, line: String },
+    DoctorFinished { name: String, lines: Vec<String> },
     Tick,
 }

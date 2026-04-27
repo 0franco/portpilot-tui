@@ -13,6 +13,7 @@ use crate::config::{
     self,
     schema::{kind, ProjectConfig, TunnelConfig},
 };
+use crate::doctor;
 use crate::events::AppEvent;
 use crate::tunnel::{manager::TunnelManager, TunnelState};
 use crate::ui;
@@ -609,6 +610,12 @@ pub async fn run(
                 app.push_log(format!("[{}] {}", tunnel, line));
             }
 
+            Some(AppEvent::DoctorFinished { name, lines }) => {
+                for line in lines {
+                    app.push_log(format!("[{} doctor] {}", name, line));
+                }
+            }
+
             Some(AppEvent::TunnelStateChanged { name, state }) => {
                 let log_line = match &state {
                     TunnelState::Failed { reason } => format!("[{}] → FAILED: {}", name, reason),
@@ -622,7 +629,7 @@ pub async fn run(
                 Mode::Help => app.mode = Mode::Normal,
                 Mode::Edit => handle_edit(&mut app, &mut manager, key)?,
                 Mode::Normal => {
-                    if handle_normal(&mut app, &mut manager, key)? {
+                    if handle_normal(&mut app, &mut manager, tx.clone(), key)? {
                         break;
                     }
                 }
@@ -639,6 +646,7 @@ pub async fn run(
 fn handle_normal(
     app: &mut App,
     manager: &mut TunnelManager,
+    tx: mpsc::Sender<AppEvent>,
     key: crossterm::event::KeyEvent,
 ) -> Result<bool> {
     let len = app.project.tunnels.len();
@@ -666,6 +674,21 @@ fn handle_normal(
             if let Some(t) = app.selected_tunnel() {
                 app.edit = EditState::from_config(t);
                 app.mode = Mode::Edit;
+            }
+        }
+        (KeyCode::Char('D'), _) => {
+            if let Some(tunnel) = app.selected_tunnel().cloned() {
+                let name = tunnel.name.clone();
+                app.push_log(format!("[{} doctor] starting checks", name));
+                tokio::spawn(async move {
+                    let report = doctor::diagnose(&tunnel, true).await;
+                    let _ = tx
+                        .send(AppEvent::DoctorFinished {
+                            name,
+                            lines: report.lines(),
+                        })
+                        .await;
+                });
             }
         }
         (KeyCode::Char('n'), _) => {

@@ -40,21 +40,32 @@ PortPilot fixes this.
 
 ## Installation
 
-### Homebrew (macOS)
+### From source
 
 ```sh
-brew install portpilot   # coming soon
+git clone https://github.com/0franco/portpilot-tui.git
+cd portpilot-tui
+cargo install --path .
 ```
 
-### Cargo
+Or install directly from GitHub:
+
+```sh
+cargo install --git https://github.com/0franco/portpilot-tui.git
+```
+
+### Package managers
+
+PortPilot is not published to crates.io or Homebrew yet, so these commands do not work yet:
 
 ```sh
 cargo install portpilot
+brew install portpilot
 ```
 
 ### Binary releases
 
-Download a pre-built binary from the [Releases](https://github.com/yourusername/portpilot/releases) page.
+Pre-built binaries are not published yet. When they are available, they will be attached to the [Releases](https://github.com/0franco/portpilot-tui/releases) page.
 
 > **Requirements:** `ssh` must be on your `$PATH`. Key-based auth only — `BatchMode=yes` is set by design. No password prompts.
 

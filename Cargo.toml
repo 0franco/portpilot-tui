@@ -25,7 +25,7 @@ tracing-appender    = "0.2"
 tracing-subscriber  = { version = "0.3", features = ["env-filter"] }
 dirs                = "5"
 futures-util        = { version = "0.3", default-features = false, features = ["async-await"] }
-time                = "=0.3.36"
+time                = "=0.3.47"
 indexmap            = "=2.4.0"
 
 [profile.release]
